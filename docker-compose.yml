@@ -22,6 +22,7 @@ services:
       - PORT=3000
       - CADDY_ADMIN_URL=http://caddy:2019
       - DB_PATH=/app/data/db.sqlite
+      - BUILDKIT_HOST=tcp://buildkit:1234
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
       - paas_data:/app/data
@@ -32,6 +33,13 @@ services:
   frontend:
     build:
       context: ./frontend
+    networks:
+      - paas-network
+
+  buildkit:
+    image: moby/buildkit:latest
+    command: ["--addr", "tcp://0.0.0.0:1234"]
+    privileged: true
     networks:
       - paas-network
 

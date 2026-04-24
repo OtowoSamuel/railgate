@@ -174,7 +174,7 @@ function App() {
                         <span className={`badge badge-${dep.status}`}>{dep.status}</span>
                       </div>
                       <span className="deployment-time">
-                        {formatDistanceToNow(new Date(dep.created_at), { addSuffix: true })}
+                        {formatDistanceToNow(new Date(dep.created_at.replace(' ', 'T') + 'Z'), { addSuffix: true })}
                       </span>
                     </div>
                     {dep.live_url && dep.status === 'running' && (
@@ -232,7 +232,7 @@ function App() {
                             </div>
                           </td>
                           <td style={{ textTransform: 'capitalize' }}>{build.source}</td>
-                          <td>{formatDistanceToNow(new Date(build.created_at))} ago</td>
+                          <td>{formatDistanceToNow(new Date(build.created_at.replace(' ', 'T') + 'Z'))} ago</td>
                           <td className="text-right">
                             {build.status === 'succeeded' && selectedDeployment?.active_build_id !== build.id && (
                               <button 

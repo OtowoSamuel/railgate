@@ -1,50 +1,77 @@
-import fs from 'fs';
-import path from 'path';
-import { v4 as uuidv4 } from 'uuid';
+import { ulid } from 'ulid';
 import db from '../db';
 import { addLog } from './logs';
-import { buildImage, runContainer } from './docker';
-import { addRoute } from './caddy';
+import { buildImage, runContainer, waitForAppReadiness, destroyContainerGracefully } from './docker';
+import { caddyManager } from './caddy';
 
-export async function startDeployment(deploymentId: string) {
+export async function startDeployment(deploymentId: string, buildSource: 'git' | 'upload' | 'rollback', targetBuildId?: string) {
   const deployment = db.prepare('SELECT * FROM deployments WHERE id = ?').get(deploymentId) as any;
   if (!deployment) return;
 
+  const buildId = ulid();
+  let imageTag = '';
+
   try {
-    updateStatus(deploymentId, 'building');
-    addLog(deploymentId, 'build', 'Starting build pipeline...');
+    // 1. Build Phase
+    if (buildSource === 'rollback' && targetBuildId) {
+      const targetBuild = db.prepare('SELECT * FROM builds WHERE id = ?').get(targetBuildId) as any;
+      if (!targetBuild) throw new Error('Target build not found for rollback');
+      
+      imageTag = targetBuild.image_tag;
+      
+      const buildStmt = db.prepare('INSERT INTO builds (id, deployment_id, image_tag, status, source, parent_build_id) VALUES (?, ?, ?, ?, ?, ?)');
+      buildStmt.run(buildId, deploymentId, imageTag, 'succeeded', 'rollback', targetBuildId);
+      
+      updateStatus(deploymentId, 'deploying');
+      addLog(deploymentId, 'deploy', `Rolling back to image ${imageTag}...`);
+    } else {
+      imageTag = `deploy-${deploymentId}:${buildId.toLowerCase()}`;
+      const buildStmt = db.prepare('INSERT INTO builds (id, deployment_id, image_tag, status, source) VALUES (?, ?, ?, ?, ?)');
+      buildStmt.run(buildId, deploymentId, imageTag, 'building', buildSource);
 
-    const tag = `deploy-${deploymentId}-${Date.now().toString().slice(-6)}`;
-    let sourcePath = deployment.source_value;
+      updateStatus(deploymentId, 'building');
+      addLog(deploymentId, 'build', `Starting build pipeline (ID: ${buildId})...`);
 
-    // In a real app, we'd clone git repo here if source_type is 'git'
-    if (deployment.source_type === 'git') {
-      addLog(deploymentId, 'build', `Cloning git repository: ${deployment.source_value}`);
-      // Simulating clone for now
-      // await runCommand('git', ['clone', deployment.source_value, tempDir], deploymentId, 'build');
+      await buildImage(deploymentId, deployment.source_value, imageTag);
+
+      db.prepare('UPDATE builds SET status = ? WHERE id = ?').run('succeeded', buildId);
+      addLog(deploymentId, 'build', 'Build succeeded.');
+      updateStatus(deploymentId, 'deploying');
     }
 
-    await buildImage(deploymentId, sourcePath, tag);
+    // 2. Deploy Phase (Zero-Downtime)
+    const containerName = `app-${deploymentId}-${buildId.slice(-6).toLowerCase()}`;
+    addLog(deploymentId, 'deploy', `Starting new container ${containerName}...`);
 
-    updateStatus(deploymentId, 'deploying');
-    addLog(deploymentId, 'deploy', 'Deploying container...');
+    const { containerId, port } = await runContainer(deploymentId, imageTag, containerName);
+    addLog(deploymentId, 'deploy', `Container started. ID: ${containerId}. Waiting for readiness...`);
 
-    const { containerId, port } = await runContainer(deploymentId, tag);
+    await waitForAppReadiness(deploymentId, containerName, port);
 
-    addLog(deploymentId, 'deploy', `Container started. ID: ${containerId}, Port: ${port}`);
+    await caddyManager.addOrUpdateRoute(deploymentId, `${containerName}:3000`);
 
-    updateStatus(deploymentId, 'deploying', { container_id: containerId, container_port: port, image_tag: tag });
-
-    addLog(deploymentId, 'deploy', 'Configuring routing...');
-    await addRoute(deploymentId, port);
+    // 3. Cleanup Old Container
+    const previousContainerId = deployment.container_id;
+    if (previousContainerId && previousContainerId !== containerId) {
+      addLog(deploymentId, 'deploy', `Gracefully shutting down old container ${previousContainerId}...`);
+      await destroyContainerGracefully(previousContainerId);
+    }
 
     const liveUrl = `/deploy/${deploymentId}`;
-    updateStatus(deploymentId, 'running', { live_url: liveUrl });
+    updateStatus(deploymentId, 'running', { 
+      container_id: containerId, 
+      container_port: port, 
+      image_tag: imageTag, 
+      active_build_id: buildId,
+      live_url: liveUrl 
+    });
+
     addLog(deploymentId, 'deploy', `Deployment successful! Live at: ${liveUrl}`);
 
   } catch (error: any) {
     console.error(`Deployment ${deploymentId} failed:`, error);
     updateStatus(deploymentId, 'failed', { error_message: error.message });
+    db.prepare('UPDATE builds SET status = ? WHERE id = ?').run('failed', buildId);
     addLog(deploymentId, 'deploy', `ERROR: ${error.message}`);
   }
 }

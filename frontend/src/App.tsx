@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDeployments, createDeployment } from './api';
-import { Rocket, Github, Upload, Loader2, ExternalLink, ScrollText, CheckCircle2, AlertCircle, Clock } from 'lucide-react';
+import { getDeployments, createDeployment, getBuilds, rollbackDeployment } from './api';
+import { Rocket, GitBranch, Upload, Loader2, ExternalLink, ScrollText, CheckCircle2, AlertCircle, Clock, RotateCcw, History } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 function App() {
@@ -16,7 +16,14 @@ function App() {
   const { data: deployments, isLoading } = useQuery({
     queryKey: ['deployments'],
     queryFn: getDeployments,
-    refetchInterval: 5000,
+    refetchInterval: 3000,
+  });
+
+  const { data: builds } = useQuery({
+    queryKey: ['builds', selectedDeploymentId],
+    queryFn: () => getBuilds(selectedDeploymentId!),
+    enabled: !!selectedDeploymentId,
+    refetchInterval: 3000,
   });
 
   const mutation = useMutation({
@@ -29,9 +36,17 @@ function App() {
     },
   });
 
+  const rollbackMutation = useMutation({
+    mutationFn: ({ deploymentId, buildId }: { deploymentId: string, buildId: string }) => rollbackDeployment(deploymentId, buildId),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments'] });
+      queryClient.invalidateQueries({ queryKey: ['builds', selectedDeploymentId] });
+      setLogs([]); // Clear logs on rollback to see new deployment logs
+    }
+  });
+
   useEffect(() => {
     if (selectedDeploymentId) {
-      // Clear logs and connect to SSE
       setLogs([]);
       if (eventSourceRef.current) eventSourceRef.current.close();
 
@@ -40,12 +55,16 @@ function App() {
 
       es.onmessage = (event) => {
         const log = JSON.parse(event.data);
-        setLogs((prev) => [...prev, log]);
+        setLogs((prev) => {
+          // Prevent duplicates if EventSource reconnects
+          if (prev.find(l => l.id === log.id)) return prev;
+          return [...prev, log];
+        });
       };
 
       es.onerror = () => {
-        console.error('SSE connection failed');
-        es.close();
+        // EventSource auto-reconnects, but if it fails completely we can log it
+        console.error('SSE connection error. Reconnecting...');
       };
 
       return () => es.close();
@@ -64,7 +83,7 @@ function App() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'running': return <CheckCircle2 className="w-4 h-4 text-success" />;
+      case 'running': case 'succeeded': return <CheckCircle2 className="w-4 h-4 text-success" />;
       case 'failed': return <AlertCircle className="w-4 h-4 text-error" />;
       case 'pending':
       case 'building':
@@ -73,27 +92,30 @@ function App() {
     }
   };
 
+  const selectedDeployment = deployments?.find((d: any) => d.id === selectedDeploymentId);
+  const isDeploying = selectedDeployment && ['pending', 'building', 'deploying'].includes(selectedDeployment.status);
+
   return (
     <div className="container">
       <header className="mb-12 flex justify-between items-center">
         <div>
           <h1 className="text-4xl mb-2 flex items-center gap-3">
             <Rocket className="text-accent-color w-10 h-10" />
-            Antigravity PaaS
+            Railgate PaaS
           </h1>
-          <p className="text-text-secondary">Mini-PaaS deployment platform for rapid development.</p>
+          <p className="text-text-secondary">Zero-downtime deployment platform.</p>
         </div>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Deploy Form */}
-        <div className="lg:col-span-1">
-          <div className="glass p-6 sticky top-8">
+        {/* Deploy Form & Deployments List */}
+        <div className="lg:col-span-1 space-y-8">
+          <div className="glass p-6">
             <h2 className="text-xl mb-6">Deploy New App</h2>
             <form onSubmit={handleSubmit} className="space-y-6">
               <div>
                 <label className="block text-sm font-medium mb-2 flex items-center gap-2">
-                  <Github className="w-4 h-4" /> Git Repository URL
+                  <GitBranch className="w-4 h-4" /> Git Repository URL
                 </label>
                 <input
                   type="text"
@@ -133,10 +155,7 @@ function App() {
               </button>
             </form>
           </div>
-        </div>
 
-        {/* Deployments List & Logs */}
-        <div className="lg:col-span-2 space-y-8">
           <div className="glass p-6">
             <h2 className="text-xl mb-6">Deployments</h2>
             {isLoading ? (
@@ -161,49 +180,107 @@ function App() {
                         {formatDistanceToNow(new Date(dep.created_at), { addSuffix: true })}
                       </span>
                     </div>
-                    <div className="text-sm text-text-secondary truncate mb-2">
-                      Source: {dep.source_value}
-                    </div>
                     {dep.live_url && (
                       <a
                         href={dep.live_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-accent-color flex items-center gap-1 hover:underline"
+                        className="text-xs text-accent-color flex items-center gap-1 hover:underline mt-2"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <ExternalLink className="w-3 h-3" /> View App
+                        <ExternalLink className="w-3 h-3" /> Visit App
                       </a>
                     )}
                   </div>
                 ))}
-                {deployments?.length === 0 && (
-                  <div className="text-center p-12 text-text-secondary">No deployments yet.</div>
-                )}
               </div>
             )}
           </div>
+        </div>
 
-          {/* Logs View */}
-          {selectedDeploymentId && (
-            <div className="glass p-6">
-              <div className="flex justify-between items-center mb-6">
-                <h2 className="text-xl flex items-center gap-2">
-                  <ScrollText className="w-5 h-5 text-accent-color" />
-                  Deployment Logs
+        {/* Details & Logs */}
+        <div className="lg:col-span-2 space-y-8">
+          {selectedDeploymentId ? (
+            <>
+              {/* Build History */}
+              <div className="glass p-6">
+                <h2 className="text-xl flex items-center gap-2 mb-6">
+                  <History className="w-5 h-5 text-accent-color" />
+                  Build History
                 </h2>
-                <span className="text-xs font-mono text-text-secondary">{selectedDeploymentId}</span>
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm text-left">
+                    <thead className="text-xs uppercase bg-panel-bg text-text-secondary border-b border-border-color">
+                      <tr>
+                        <th className="px-4 py-3">ID</th>
+                        <th className="px-4 py-3">Status</th>
+                        <th className="px-4 py-3">Source</th>
+                        <th className="px-4 py-3">Age</th>
+                        <th className="px-4 py-3 text-right">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {builds?.map((build: any) => (
+                        <tr key={build.id} className="border-b border-border-color hover:bg-panel-bg">
+                          <td className="px-4 py-3 font-mono">{build.id.slice(0, 8)}</td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center gap-2">
+                              {getStatusIcon(build.status)}
+                              {build.status}
+                              {selectedDeployment?.active_build_id === build.id && (
+                                <span className="ml-2 text-[10px] uppercase bg-accent-color text-white px-2 py-0.5 rounded-full">Active</span>
+                              )}
+                            </div>
+                          </td>
+                          <td className="px-4 py-3">{build.source}</td>
+                          <td className="px-4 py-3">{formatDistanceToNow(new Date(build.created_at))}</td>
+                          <td className="px-4 py-3 text-right">
+                            {build.status === 'succeeded' && selectedDeployment?.active_build_id !== build.id && (
+                              <button 
+                                onClick={() => rollbackMutation.mutate({ deploymentId: selectedDeploymentId, buildId: build.id })}
+                                disabled={isDeploying || rollbackMutation.isPending}
+                                className="flex items-center gap-1 text-xs bg-panel-bg hover:bg-white/10 px-3 py-1.5 rounded disabled:opacity-50"
+                              >
+                                {rollbackMutation.isPending && rollbackMutation.variables?.buildId === build.id ? (
+                                  <Loader2 className="w-3 h-3 animate-spin" />
+                                ) : (
+                                  <RotateCcw className="w-3 h-3" />
+                                )}
+                                Rollback
+                              </button>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
               </div>
-              <div className="log-panel">
-                {logs.map((log, i) => (
-                  <div key={i} className="log-line">
-                    <span className="timestamp">[{new Date(log.emitted_at).toLocaleTimeString()}]</span>
-                    <span className={`stage ${log.stage}`}>{log.stage.toUpperCase()}</span>
-                    <span className="content">{log.line}</span>
-                  </div>
-                ))}
-                <div ref={logEndRef} />
+
+              {/* Logs View */}
+              <div className="glass p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-xl flex items-center gap-2">
+                    <ScrollText className="w-5 h-5 text-accent-color" />
+                    Live Logs
+                  </h2>
+                </div>
+                <div className="log-panel">
+                  {logs.map((log) => (
+                    <div key={log.id} className="log-line">
+                      <span className="timestamp">[{new Date(log.emitted_at).toLocaleTimeString()}]</span>
+                      <span className={`stage ${log.stage}`}>{log.stage.toUpperCase()}</span>
+                      <span className="content">{log.line}</span>
+                    </div>
+                  ))}
+                  <div ref={logEndRef} />
+                </div>
               </div>
+            </>
+          ) : (
+            <div className="glass p-12 text-center text-text-secondary h-full flex flex-col items-center justify-center">
+              <ScrollText className="w-16 h-16 mb-4 opacity-20" />
+              <p>Select a deployment to view history and logs.</p>
             </div>
           )}
         </div>

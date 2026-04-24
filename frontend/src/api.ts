@@ -28,3 +28,13 @@ export const createDeployment = async (payload: { gitUrl?: string; file?: File }
   });
   return data;
 };
+
+export const getBuilds = async (deploymentId: string) => {
+  const { data } = await api.get(`/deployments/${deploymentId}/builds`);
+  return data;
+};
+
+export const rollbackDeployment = async (deploymentId: string, buildId: string) => {
+  const { data } = await api.post(`/deployments/${deploymentId}/rollback`, { build_id: buildId });
+  return data;
+};

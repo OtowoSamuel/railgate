@@ -1,0 +1,46 @@
+version: '3.8'
+
+services:
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - "80:80"
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - backend
+      - frontend
+    networks:
+      - paas-network
+
+  backend:
+    build:
+      context: ./backend
+    environment:
+      - PORT=3000
+      - CADDY_ADMIN_URL=http://caddy:2019
+      - DB_PATH=/app/data/db.sqlite
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - paas_data:/app/data
+      - uploads:/app/uploads
+    networks:
+      - paas-network
+
+  frontend:
+    build:
+      context: ./frontend
+    networks:
+      - paas-network
+
+volumes:
+  caddy_data:
+  caddy_config:
+  paas_data:
+  uploads:
+
+networks:
+  paas-network:
+    driver: bridge

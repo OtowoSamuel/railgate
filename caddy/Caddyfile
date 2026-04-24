@@ -1,0 +1,17 @@
+{
+    admin 0.0.0.0:2019
+}
+
+:80 {
+    # Frontend proxy
+    handle /* {
+        reverse_proxy frontend:5173
+    }
+
+    # Backend API proxy
+    handle /api/* {
+        reverse_proxy backend:3000
+    }
+
+    # Dynamic routes for deployed apps will be added by backend under /deploy/:id/*
+}

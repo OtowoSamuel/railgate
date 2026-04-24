@@ -6,7 +6,7 @@ This project was built to satisfy the Brimble Fullstack / Infra Engineer Take-Ho
 
 ---
 
-## 🏗 Stack & Core Decisions
+## Stack & Core Decisions
 
 - **Frontend**: Vite + React 19 + TanStack Query (Single Page Application). 
   - *Decision:* Opted for a completely bespoke "Deep Space Glassmorphism" UI using **pure Vanilla CSS** (no Tailwind) to demonstrate advanced frontend engineering and deliver a premium, Vercel-like aesthetic.
@@ -22,7 +22,7 @@ This project was built to satisfy the Brimble Fullstack / Infra Engineer Take-Ho
 
 ---
 
-## ✅ Hard Requirements Coverage
+## Hard Requirements Coverage
 
 - **Single command startup:** Fully containerized. `docker compose up --build -d` brings up the entire stack instantly.
 - **Live log streaming over SSE:** Streams real-time build and deploy logs. Uses `ULID` (Universally Unique Lexicographically Sortable Identifiers) for cursors, allowing the frontend to send `Last-Event-ID` on reconnect to flawlessly resume broken streams without duplicating data.
@@ -36,7 +36,7 @@ This project was built to satisfy the Brimble Fullstack / Infra Engineer Take-Ho
 
 ---
 
-## 🚀 Bonus Requirements Coverage
+## Bonus Requirements Coverage
 
 ### Rollbacks & Immutability
 Every successful build is persistently recorded in the SQLite `builds` table and tagged immutably (e.g., `deploy-<id>:<buildId>`). 
@@ -51,7 +51,7 @@ The UI features a **Build History** panel. Clicking "Rollback" initiates a zero-
 
 ---
 
-## 📁 Project Layout
+## Project Layout
 
 - `docker-compose.yml` - Complete system topology (Frontend, Backend, Caddy, BuildKit).
 - `api/` - Express backend, Dockerode orchestrator, SSE log emitters, and pipeline workers.
@@ -60,7 +60,7 @@ The UI features a **Build History** panel. Clicking "Rollback" initiates a zero-
 
 ---
 
-## 💻 Run Locally
+## Run Locally
 
 **Prerequisites:**
 - Docker + Docker Compose plugin
@@ -75,7 +75,7 @@ Then navigate to `http://localhost` in your browser.
 
 ---
 
-## 🔌 API Surface
+## API Surface
 
 - **POST /api/deployments**
   - Accepts JSON `{ "gitUrl": "https://..." }` or `multipart/form-data` with a zip file.
@@ -86,14 +86,14 @@ Then navigate to `http://localhost` in your browser.
 
 ---
 
-## 🔄 SSE Contract
+## SSE Contract
 - Log events use standard SSE.
 - Every event is emitted with an `id:` equal to its database ULID. This guarantees lexicographical sorting.
 - If the browser drops connection, the native `EventSource` automatically reconnects and sends the `Last-Event-ID` header. The API parses this and instantly replays only the logs that were missed during the blackout.
 
 ---
 
-## ⚖️ Tradeoffs & What I'd Replace Before Production
+## Tradeoffs & What I'd Replace Before Production
 
 **Time Spent:** ~12 hours
 
@@ -114,7 +114,7 @@ If I were migrating this from a Take-Home to an Enterprise Production Environmen
 
 ---
 
-## 🗣️ Founder Walkthrough Talking Points
+## Founder Walkthrough Talking Points
 
 - **Why Dockerode over CLI Spawning?** Relying on string-parsing standard output from `child_process.spawn('docker run...')` is brittle. By using `dockerode`, I communicate with the Docker Daemon via typed REST APIs, which allows for robust error handling, precise container lifecycles, and exact stream multiplexing.
 - **Why pure Vanilla CSS?** Anybody can use Tailwind to make a decent UI. Building a dynamic, responsive, glassmorphic dashboard from scratch using CSS Grid, CSS Variables, and advanced pseudo-selectors demonstrates a much deeper mastery of the browser rendering engine.

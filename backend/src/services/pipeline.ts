@@ -1,8 +1,11 @@
 import { ulid } from 'ulid';
 import db from '../db';
 import { addLog } from './logs';
-import { buildImage, runContainer, waitForAppReadiness, destroyContainerGracefully } from './docker';
+import { buildImage, runContainer, waitForAppReadiness, destroyContainerGracefully, runCommand } from './docker';
 import { caddyManager } from './caddy';
+import { mkdtemp, rm } from 'fs/promises';
+import { tmpdir } from 'os';
+import path from 'path';
 
 export async function startDeployment(deploymentId: string, buildSource: 'git' | 'upload' | 'rollback', targetBuildId?: string) {
   const deployment = db.prepare('SELECT * FROM deployments WHERE id = ?').get(deploymentId) as any;
@@ -32,10 +35,27 @@ export async function startDeployment(deploymentId: string, buildSource: 'git' |
       updateStatus(deploymentId, 'building');
       addLog(deploymentId, 'build', `Starting build pipeline (ID: ${buildId})...`);
 
-      await buildImage(deploymentId, deployment.source_value, imageTag);
+      const workdir = await mkdtemp(path.join(tmpdir(), 'railgate-build-'));
+      addLog(deploymentId, 'build', `Created build workspace: ${workdir}`);
 
-      db.prepare('UPDATE builds SET status = ? WHERE id = ?').run('succeeded', buildId);
-      addLog(deploymentId, 'build', 'Build succeeded.');
+      try {
+        if (buildSource === 'git') {
+          addLog(deploymentId, 'build', `Cloning repository ${deployment.source_value}...`);
+          await runCommand('git', ['clone', '--depth', '1', deployment.source_value, workdir], deploymentId, 'build');
+        } else if (buildSource === 'upload') {
+          addLog(deploymentId, 'build', `Extracting archive ${deployment.source_value}...`);
+          await runCommand('unzip', ['-o', deployment.source_value, '-d', workdir], deploymentId, 'build');
+        }
+
+        await buildImage(deploymentId, workdir, imageTag);
+
+        db.prepare('UPDATE builds SET status = ? WHERE id = ?').run('succeeded', buildId);
+        addLog(deploymentId, 'build', 'Build succeeded.');
+      } finally {
+        // Clean up the temporary workspace
+        await rm(workdir, { recursive: true, force: true }).catch(err => console.error('Failed to cleanup workdir:', err));
+      }
+      
       updateStatus(deploymentId, 'deploying');
     }
 

@@ -5,6 +5,8 @@ import path from 'path';
 import db from '../db';
 import { startDeployment } from '../services/pipeline';
 import { getLogs, getLogsAfter, logEmitter } from '../services/logs';
+import { caddyManager } from '../services/caddy';
+import { destroyContainerGracefully } from '../services/docker';
 
 const router = Router();
 const upload = multer({ dest: 'uploads/' });
@@ -101,6 +103,44 @@ router.get('/:id/logs', (req, res) => {
     clearInterval(heartbeat);
     logEmitter.removeListener(`log:${id}`, onLog);
   });
+});
+
+// DELETE /deployments/:id
+router.delete('/:id', async (req, res) => {
+  const deploymentId = req.params.id;
+  const deployment = db.prepare('SELECT * FROM deployments WHERE id = ?').get(deploymentId) as any;
+  
+  if (!deployment) return res.status(404).json({ error: 'Deployment not found' });
+  
+  if (deployment.status === 'deleted') {
+    return res.json({ message: 'Already deleted' });
+  }
+
+  // Terminate container if exists
+  if (deployment.container_id) {
+    try {
+      await destroyContainerGracefully(deployment.container_id);
+    } catch (e: any) {
+      console.error(`Failed to destroy container: ${e.message}`);
+    }
+  }
+
+  // Remove Caddy route
+  await caddyManager.removeRoute(deploymentId);
+
+  // Update DB
+  db.prepare('UPDATE deployments SET status = ?, live_url = NULL, active_build_id = NULL WHERE id = ?').run('deleted', deploymentId);
+
+  // Emit event so SSE clients know it's deleted
+  const logEvent = {
+    id: uuidv4(),
+    stage: 'system',
+    line: 'Deployment deleted',
+    emitted_at: new Date().toISOString()
+  };
+  logEmitter.emit(`log:${deploymentId}`, logEvent);
+
+  res.json({ message: 'Deployment deleted', status: 'deleted' });
 });
 
 export default router;

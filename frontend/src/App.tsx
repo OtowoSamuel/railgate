@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { getDeployments, createDeployment, getBuilds, rollbackDeployment } from './api';
-import { Rocket, GitBranch, Upload, Loader2, ExternalLink, ScrollText, CheckCircle2, AlertCircle, Clock, RotateCcw, History } from 'lucide-react';
+import { getDeployments, createDeployment, getBuilds, rollbackDeployment, deleteDeployment } from './api';
+import { Rocket, GitBranch, Upload, Loader2, ExternalLink, ScrollText, CheckCircle2, AlertCircle, Clock, RotateCcw, History, Trash2 } from 'lucide-react';
 import { formatDistanceToNow } from 'date-fns';
 
 function App() {
@@ -45,6 +45,13 @@ function App() {
     }
   });
 
+  const deleteMutation = useMutation({
+    mutationFn: (id: string) => deleteDeployment(id),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['deployments'] });
+    }
+  });
+
   useEffect(() => {
     if (selectedDeploymentId) {
       setLogs([]);
@@ -83,6 +90,7 @@ function App() {
     switch (status) {
       case 'running': case 'succeeded': return <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--success)' }} />;
       case 'failed': return <AlertCircle className="w-4 h-4" style={{ color: 'var(--error)' }} />;
+      case 'deleted': return <Trash2 className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />;
       case 'pending':
       case 'building':
       case 'deploying': return <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--accent-cyan)' }} />;
@@ -177,17 +185,35 @@ function App() {
                         {formatDistanceToNow(new Date(dep.created_at.replace(' ', 'T') + 'Z'), { addSuffix: true })}
                       </span>
                     </div>
-                    {dep.live_url && dep.status === 'running' && (
-                      <a
-                        href={dep.live_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        className="live-link"
-                        onClick={(e) => e.stopPropagation()}
-                      >
-                        <ExternalLink className="w-3 h-3" /> Open App
-                      </a>
-                    )}
+                    
+                    <div className="flex items-center gap-3">
+                      {dep.live_url && dep.status === 'running' && (
+                        <a
+                          href={dep.live_url}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="live-link"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <ExternalLink className="w-3 h-3" /> Open App
+                        </a>
+                      )}
+                      {dep.status !== 'deleted' && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); deleteMutation.mutate(dep.id); }}
+                          disabled={deleteMutation.isPending && deleteMutation.variables === dep.id}
+                          className="btn-icon"
+                          style={{ marginTop: '0.5rem', background: 'transparent', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: '0.25rem' }}
+                          title="Delete Deployment"
+                        >
+                          {deleteMutation.isPending && deleteMutation.variables === dep.id ? (
+                            <Loader2 className="w-4 h-4 animate-spin" />
+                          ) : (
+                            <Trash2 className="w-4 h-4 hover:text-red-400 transition-colors" />
+                          )}
+                        </button>
+                      )}
+                    </div>
                   </div>
                 ))}
               </div>

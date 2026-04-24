@@ -38,3 +38,8 @@ export const rollbackDeployment = async (deploymentId: string, buildId: string) 
   const { data } = await api.post(`/deployments/${deploymentId}/rollback`, { build_id: buildId });
   return data;
 };
+
+export const deleteDeployment = async (deploymentId: string) => {
+  const { data } = await api.delete(`/deployments/${deploymentId}`);
+  return data;
+};

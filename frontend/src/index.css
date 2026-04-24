@@ -73,10 +73,11 @@ p {
 .app-container {
   max-width: 1400px;
   margin: 0 auto;
-  padding: 3rem 2rem;
+  padding: 2rem 2rem;
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  height: 100vh;
 }
 
 .app-header {
@@ -87,6 +88,8 @@ p {
   display: grid;
   grid-template-columns: 1fr;
   gap: 2rem;
+  flex: 1;
+  min-height: 0;
 }
 
 @media (min-width: 1024px) {
@@ -99,6 +102,9 @@ p {
   display: flex;
   flex-direction: column;
   gap: 2rem;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  padding-bottom: 2rem;
 }
 
 .main-content {
@@ -106,6 +112,9 @@ p {
   flex-direction: column;
   gap: 2rem;
   min-width: 0;
+  overflow-y: auto;
+  padding-right: 0.5rem;
+  padding-bottom: 2rem;
 }
 
 /* Glass Panels */
@@ -413,8 +422,10 @@ tr:hover td {
   border-radius: 12px;
   border: 1px solid var(--border-subtle);
   padding: 1.5rem;
-  height: 500px;
+  flex: 1;
+  min-height: 500px;
   overflow-y: auto;
+  overflow-x: auto;
   font-family: var(--font-mono);
   font-size: 0.85rem;
   position: relative;
@@ -427,6 +438,7 @@ tr:hover td {
 }
 .log-terminal::-webkit-scrollbar-track {
   background: rgba(0, 0, 0, 0.3);
+  border-radius: 4px;
 }
 .log-terminal::-webkit-scrollbar-thumb {
   background: var(--border-subtle);
@@ -441,7 +453,7 @@ tr:hover td {
   display: flex;
   align-items: flex-start;
   line-height: 1.4;
-  word-break: break-all;
+  white-space: pre;
 }
 
 .log-time {

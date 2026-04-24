@@ -41,7 +41,7 @@ function App() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['deployments'] });
       queryClient.invalidateQueries({ queryKey: ['builds', selectedDeploymentId] });
-      setLogs([]); // Clear logs on rollback to see new deployment logs
+      setLogs([]); 
     }
   });
 
@@ -56,14 +56,12 @@ function App() {
       es.onmessage = (event) => {
         const log = JSON.parse(event.data);
         setLogs((prev) => {
-          // Prevent duplicates if EventSource reconnects
           if (prev.find(l => l.id === log.id)) return prev;
           return [...prev, log];
         });
       };
 
       es.onerror = () => {
-        // EventSource auto-reconnects, but if it fails completely we can log it
         console.error('SSE connection error. Reconnecting...');
       };
 
@@ -83,12 +81,12 @@ function App() {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'running': case 'succeeded': return <CheckCircle2 className="w-4 h-4 text-success" />;
-      case 'failed': return <AlertCircle className="w-4 h-4 text-error" />;
+      case 'running': case 'succeeded': return <CheckCircle2 className="w-4 h-4" style={{ color: 'var(--success)' }} />;
+      case 'failed': return <AlertCircle className="w-4 h-4" style={{ color: 'var(--error)' }} />;
       case 'pending':
       case 'building':
-      case 'deploying': return <Loader2 className="w-4 h-4 animate-spin text-accent-color" />;
-      default: return <Clock className="w-4 h-4 text-text-secondary" />;
+      case 'deploying': return <Loader2 className="w-4 h-4 animate-spin" style={{ color: 'var(--accent-cyan)' }} />;
+      default: return <Clock className="w-4 h-4" style={{ color: 'var(--text-muted)' }} />;
     }
   };
 
@@ -96,29 +94,32 @@ function App() {
   const isDeploying = selectedDeployment && ['pending', 'building', 'deploying'].includes(selectedDeployment.status);
 
   return (
-    <div className="container">
-      <header className="mb-12 flex justify-between items-center">
+    <div className="app-container">
+      <header className="app-header flex justify-between items-center">
         <div>
-          <h1 className="text-4xl mb-2 flex items-center gap-3">
-            <Rocket className="text-accent-color w-10 h-10" />
-            Railgate PaaS
+          <h1 className="flex items-center gap-3">
+            <Rocket /> Railgate PaaS
           </h1>
-          <p className="text-text-secondary">Zero-downtime deployment platform.</p>
+          <p>Next-generation, zero-downtime deployment engine.</p>
         </div>
       </header>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Deploy Form & Deployments List */}
-        <div className="lg:col-span-1 space-y-8">
-          <div className="glass p-6">
-            <h2 className="text-xl mb-6">Deploy New App</h2>
-            <form onSubmit={handleSubmit} className="space-y-6">
-              <div>
-                <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+      <div className="app-grid">
+        {/* Sidebar */}
+        <aside className="sidebar">
+          {/* Deploy Form */}
+          <section className="glass-panel hoverable">
+            <h2 className="flex items-center gap-2">
+              <Upload className="w-5 h-5 text-accent-cyan" /> New Deployment
+            </h2>
+            <form onSubmit={handleSubmit}>
+              <div className="form-group">
+                <label className="form-label">
                   <GitBranch className="w-4 h-4" /> Git Repository URL
                 </label>
                 <input
                   type="text"
+                  className="input-field"
                   placeholder="https://github.com/user/repo"
                   value={gitUrl}
                   onChange={(e) => setGitUrl(e.target.value)}
@@ -126,120 +127,118 @@ function App() {
                 />
               </div>
 
-              <div className="relative">
-                <div className="absolute inset-0 flex items-center">
-                  <span className="w-full border-t border-border-color"></span>
-                </div>
-                <div className="relative flex justify-center text-xs uppercase">
-                  <span className="bg-bg-color px-2 text-text-secondary">Or upload archive</span>
-                </div>
-              </div>
+              <div className="divider">Or upload archive</div>
 
-              <div>
-                <label className="block text-sm font-medium mb-2 flex items-center gap-2">
+              <div className="form-group">
+                <label className="form-label">
                   <Upload className="w-4 h-4" /> Zip/Tarball
                 </label>
                 <input
                   type="file"
+                  className="input-field"
                   onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
                   disabled={!!gitUrl}
+                  style={{ padding: '0.65rem 1rem' }}
                 />
               </div>
 
               <button
                 type="submit"
-                className="primary w-full flex justify-center items-center gap-2"
+                className="btn btn-primary"
                 disabled={mutation.isPending || (!gitUrl && !selectedFile)}
               >
-                {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Deploy Now'}
+                {mutation.isPending ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Deploy App'}
               </button>
             </form>
-          </div>
+          </section>
 
-          <div className="glass p-6">
-            <h2 className="text-xl mb-6">Deployments</h2>
+          {/* Deployments List */}
+          <section className="glass-panel">
+            <h2>Active Apps</h2>
             {isLoading ? (
-              <div className="flex justify-center p-12"><Loader2 className="w-8 h-8 animate-spin" /></div>
+              <div className="flex justify-center" style={{ padding: '3rem' }}>
+                <Loader2 className="w-8 h-8 animate-spin" style={{ color: 'var(--accent-indigo)' }} />
+              </div>
             ) : (
-              <div className="space-y-4">
+              <div>
                 {deployments?.map((dep: any) => (
                   <div
                     key={dep.id}
-                    className={`p-4 rounded-lg border cursor-pointer transition-colors ${
-                      selectedDeploymentId === dep.id ? 'bg-panel-bg border-accent-color' : 'border-border-color hover:border-text-secondary'
-                    }`}
+                    className={`deployment-card ${selectedDeploymentId === dep.id ? 'active' : ''}`}
                     onClick={() => setSelectedDeploymentId(dep.id)}
                   >
-                    <div className="flex justify-between items-start mb-2">
-                      <div className="flex items-center gap-3">
+                    <div className="deployment-header">
+                      <div className="deployment-title">
                         {getStatusIcon(dep.status)}
-                        <span className="font-mono text-sm">{dep.id.split('-')[0]}...</span>
-                        <span className={`badge ${dep.status}`}>{dep.status}</span>
+                        <span className="deployment-id">{dep.id.split('-')[0]}...</span>
+                        <span className={`badge badge-${dep.status}`}>{dep.status}</span>
                       </div>
-                      <span className="text-xs text-text-secondary">
+                      <span className="deployment-time">
                         {formatDistanceToNow(new Date(dep.created_at), { addSuffix: true })}
                       </span>
                     </div>
-                    {dep.live_url && (
+                    {dep.live_url && dep.status === 'running' && (
                       <a
                         href={dep.live_url}
                         target="_blank"
                         rel="noreferrer"
-                        className="text-xs text-accent-color flex items-center gap-1 hover:underline mt-2"
+                        className="live-link"
                         onClick={(e) => e.stopPropagation()}
                       >
-                        <ExternalLink className="w-3 h-3" /> Visit App
+                        <ExternalLink className="w-3 h-3" /> Open App
                       </a>
                     )}
                   </div>
                 ))}
               </div>
             )}
-          </div>
-        </div>
+          </section>
+        </aside>
 
-        {/* Details & Logs */}
-        <div className="lg:col-span-2 space-y-8">
+        {/* Main Content */}
+        <main className="main-content">
           {selectedDeploymentId ? (
             <>
               {/* Build History */}
-              <div className="glass p-6">
-                <h2 className="text-xl flex items-center gap-2 mb-6">
-                  <History className="w-5 h-5 text-accent-color" />
+              <section className="glass-panel">
+                <h2 className="flex items-center gap-2 mb-6">
+                  <History className="w-5 h-5" style={{ color: 'var(--accent-indigo)' }} />
                   Build History
                 </h2>
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm text-left">
-                    <thead className="text-xs uppercase bg-panel-bg text-text-secondary border-b border-border-color">
+                <div className="table-container">
+                  <table>
+                    <thead>
                       <tr>
-                        <th className="px-4 py-3">ID</th>
-                        <th className="px-4 py-3">Status</th>
-                        <th className="px-4 py-3">Source</th>
-                        <th className="px-4 py-3">Age</th>
-                        <th className="px-4 py-3 text-right">Action</th>
+                        <th>Build ID</th>
+                        <th>Status</th>
+                        <th>Source</th>
+                        <th>Deployed</th>
+                        <th className="text-right">Action</th>
                       </tr>
                     </thead>
                     <tbody>
                       {builds?.map((build: any) => (
-                        <tr key={build.id} className="border-b border-border-color hover:bg-panel-bg">
-                          <td className="px-4 py-3 font-mono">{build.id.slice(0, 8)}</td>
-                          <td className="px-4 py-3">
+                        <tr key={build.id}>
+                          <td className="font-mono" style={{ fontFamily: 'var(--font-mono)' }}>
+                            {build.id.slice(0, 8)}
+                          </td>
+                          <td>
                             <div className="flex items-center gap-2">
                               {getStatusIcon(build.status)}
-                              {build.status}
+                              <span style={{ textTransform: 'capitalize' }}>{build.status}</span>
                               {selectedDeployment?.active_build_id === build.id && (
-                                <span className="ml-2 text-[10px] uppercase bg-accent-color text-white px-2 py-0.5 rounded-full">Active</span>
+                                <span className="badge badge-running" style={{ padding: '0.15rem 0.4rem', fontSize: '0.6rem' }}>Active</span>
                               )}
                             </div>
                           </td>
-                          <td className="px-4 py-3">{build.source}</td>
-                          <td className="px-4 py-3">{formatDistanceToNow(new Date(build.created_at))}</td>
-                          <td className="px-4 py-3 text-right">
+                          <td style={{ textTransform: 'capitalize' }}>{build.source}</td>
+                          <td>{formatDistanceToNow(new Date(build.created_at))} ago</td>
+                          <td className="text-right">
                             {build.status === 'succeeded' && selectedDeployment?.active_build_id !== build.id && (
                               <button 
                                 onClick={() => rollbackMutation.mutate({ deploymentId: selectedDeploymentId, buildId: build.id })}
                                 disabled={isDeploying || rollbackMutation.isPending}
-                                className="flex items-center gap-1 text-xs bg-panel-bg hover:bg-white/10 px-3 py-1.5 rounded disabled:opacity-50"
+                                className="btn btn-secondary"
                               >
                                 {rollbackMutation.isPending && rollbackMutation.variables?.buildId === build.id ? (
                                   <Loader2 className="w-3 h-3 animate-spin" />
@@ -252,38 +251,45 @@ function App() {
                           </td>
                         </tr>
                       ))}
+                      {!builds?.length && (
+                        <tr>
+                          <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                            No builds recorded yet.
+                          </td>
+                        </tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
-              </div>
+              </section>
 
-              {/* Logs View */}
-              <div className="glass p-6">
-                <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-xl flex items-center gap-2">
-                    <ScrollText className="w-5 h-5 text-accent-color" />
-                    Live Logs
-                  </h2>
-                </div>
-                <div className="log-panel">
+              {/* Terminal Logs */}
+              <section className="glass-panel">
+                <h2 className="flex items-center gap-2 mb-6">
+                  <ScrollText className="w-5 h-5" style={{ color: 'var(--accent-cyan)' }} />
+                  Live Terminal
+                  {isDeploying && <div className="status-dot active ml-2"></div>}
+                </h2>
+                <div className="log-terminal">
                   {logs.map((log) => (
                     <div key={log.id} className="log-line">
-                      <span className="timestamp">[{new Date(log.emitted_at).toLocaleTimeString()}]</span>
-                      <span className={`stage ${log.stage}`}>{log.stage.toUpperCase()}</span>
-                      <span className="content">{log.line}</span>
+                      <span className="log-time">[{new Date(log.emitted_at).toLocaleTimeString()}]</span>
+                      <span className={`log-stage ${log.stage}`}>{log.stage.toUpperCase()}</span>
+                      <span className="log-content">{log.line}</span>
                     </div>
                   ))}
                   <div ref={logEndRef} />
                 </div>
-              </div>
+              </section>
             </>
           ) : (
-            <div className="glass p-12 text-center text-text-secondary h-full flex flex-col items-center justify-center">
-              <ScrollText className="w-16 h-16 mb-4 opacity-20" />
-              <p>Select a deployment to view history and logs.</p>
+            <div className="glass-panel empty-state">
+              <Rocket className="w-20 h-20 empty-icon" />
+              <h3>No Deployment Selected</h3>
+              <p>Select an app from the sidebar to view its builds and live terminal.</p>
             </div>
           )}
-        </div>
+        </main>
       </div>
     </div>
   );

@@ -77,7 +77,7 @@ export async function startDeployment(deploymentId: string, buildSource: 'git' |
       await destroyContainerGracefully(previousContainerId);
     }
 
-    const liveUrl = `/deploy/${deploymentId}`;
+    const liveUrl = `/apps/${deploymentId}/`;
     updateStatus(deploymentId, 'running', { 
       container_id: containerId, 
       container_port: port, 

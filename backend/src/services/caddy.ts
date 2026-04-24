@@ -9,15 +9,33 @@ class CaddyManager {
   async addOrUpdateRoute(deploymentId: string, upstreamHost: string) {
     return await this.mutex.runExclusive(async () => {
       const routeId = `deploy-${deploymentId}`;
+      const route = `/apps/${deploymentId}`;
       const routePayload = {
         '@id': routeId,
+        match: [{ path: [`${route}/*`] }],
         handle: [
           {
-            handler: 'reverse_proxy',
-            upstreams: [{ dial: upstreamHost }]
+            handler: 'subroute',
+            routes: [
+              {
+                handle: [
+                  {
+                    handler: 'rewrite',
+                    strip_path_prefix: route
+                  }
+                ]
+              },
+              {
+                handle: [
+                  {
+                    handler: 'reverse_proxy',
+                    upstreams: [{ dial: upstreamHost }]
+                  }
+                ]
+              }
+            ]
           }
         ],
-        match: [{ path: [`/deploy/${deploymentId}/*`] }],
         terminal: true
       };
 

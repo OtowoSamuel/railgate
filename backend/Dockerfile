@@ -1,7 +1,8 @@
 FROM node:20-alpine
 
-# Install Docker CLI to interact with the mounted socket
-RUN apk add --no-cache docker-cli
+# Install Docker CLI and Railpack
+RUN apk add --no-cache docker-cli curl
+RUN curl -sSL https://railpack.com/install.sh | sh
 
 WORKDIR /app
 

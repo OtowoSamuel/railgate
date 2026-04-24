@@ -181,8 +181,8 @@ function App() {
                         <span className="deployment-id">{dep.id.split('-')[0]}...</span>
                         <span className={`badge badge-${dep.status}`}>{dep.status}</span>
                         {dep.image_tag && (
-                          <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>
-                            {dep.image_tag}
+                          <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)', maxWidth: '100%', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', display: 'inline-block' }} title={dep.image_tag}>
+                            {dep.image_tag.length > 25 ? dep.image_tag.substring(0, 22) + '...' : dep.image_tag}
                           </span>
                         )}
                       </div>

@@ -34,7 +34,7 @@ export function runCommand(command: string, args: string[], deploymentId: string
 
 export async function buildImage(deploymentId: string, sourcePath: string, tag: string) {
   // Use Railpack binary
-  await runCommand('railpack', ['build', sourcePath, '-t', tag], deploymentId, 'build');
+  await runCommand('railpack', ['build', '--name', tag, sourcePath], deploymentId, 'build');
 }
 
 export async function runContainer(deploymentId: string, tag: string, containerName: string): Promise<{ containerId: string; port: number }> {

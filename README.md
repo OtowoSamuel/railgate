@@ -95,7 +95,7 @@ Then navigate to `http://localhost` in your browser.
 
 ## Tradeoffs & What I'd Replace Before Production
 
-**Time Spent:** ~12 hours
+**Time Spent:** ~14 hours
 
 If I were migrating this from a Take-Home to an Enterprise Production Environment, I would execute the following architectural shifts:
 
@@ -111,6 +111,17 @@ If I were migrating this from a Take-Home to an Enterprise Production Environmen
 4. **Queueing System:**
    - *Current:* Deployments are fire-and-forget asynchronous functions in Express. If the Node container crashes mid-deploy, the deployment is permanently orphaned.
    - *Production:* I would introduce a durable task queue (like BullMQ + Redis) to ensure pipelines can survive API restarts and auto-resume.
+
+---
+
+## ☁️ Brimble Deploy + Feedback
+
+> **IMPORTANT:** I deployed a simple Vite application to Brimble to test the platform.
+
+**Deployment URL:** `[INSERT YOUR BRIMBLE DEPLOY URL HERE]`
+
+**Feedback on the Deploy Experience:**
+*[INSERT YOUR HONEST FEEDBACK HERE. Example: "The initial onboarding was incredibly fast, and I loved the UI for importing from GitHub. However, I noticed that the build logs were slightly delayed, and when I encountered a failed build due to a missing environment variable, the error message was buried too deep in the raw logs. I would love to see a 'Summary' panel that uses heuristics to surface the likely cause of a failed build (e.g., 'Missing START command' or 'Port bind timeout'). Overall, the core loop is very solid!"]*
 
 ---
 

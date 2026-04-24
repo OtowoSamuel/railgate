@@ -180,6 +180,11 @@ function App() {
                         {getStatusIcon(dep.status)}
                         <span className="deployment-id">{dep.id.split('-')[0]}...</span>
                         <span className={`badge badge-${dep.status}`}>{dep.status}</span>
+                        {dep.image_tag && (
+                          <span className="badge" style={{ background: 'rgba(255,255,255,0.1)', color: 'var(--text-secondary)' }}>
+                            {dep.image_tag}
+                          </span>
+                        )}
                       </div>
                       <span className="deployment-time">
                         {formatDistanceToNow(new Date(dep.created_at.replace(' ', 'T') + 'Z'), { addSuffix: true })}
@@ -236,6 +241,7 @@ function App() {
                     <thead>
                       <tr>
                         <th>Build ID</th>
+                        <th>Image Tag</th>
                         <th>Status</th>
                         <th>Source</th>
                         <th>Deployed</th>
@@ -247,6 +253,9 @@ function App() {
                         <tr key={build.id}>
                           <td className="font-mono" style={{ fontFamily: 'var(--font-mono)' }}>
                             {build.id.slice(0, 8)}
+                          </td>
+                          <td className="font-mono text-muted" style={{ fontSize: '0.8rem' }}>
+                            railgate-app-{selectedDeploymentId?.substring(0, 8)}:{build.id.substring(0, 8)}
                           </td>
                           <td>
                             <div className="flex items-center gap-2">
@@ -279,7 +288,7 @@ function App() {
                       ))}
                       {!builds?.length && (
                         <tr>
-                          <td colSpan={5} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
+                          <td colSpan={6} style={{ textAlign: 'center', padding: '2rem', color: 'var(--text-muted)' }}>
                             No builds recorded yet.
                           </td>
                         </tr>

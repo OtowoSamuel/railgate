@@ -121,9 +121,10 @@ If I were migrating this from a Take-Home to an Enterprise Production Environmen
 **Deployment URL:** `https://brimble-feedback.brimble.app/`
 
 **Feedback on the Deploy Experience:**
-The deployment flow is generally very smooth, but I encountered two significant points of friction:
+The deployment flow is generally very smooth, but I encountered three specific points of friction:
 1. **Billing/Quota Bug:** When I linked my new GitHub account, before I even deployed a single app, the system told me to "update my plan" and the billing page erroneously showed that I had already used all 650 free minutes. This is a critical onboarding bug that prevents new users from trying the platform.
 2. **UI Overlap:** During the onboarding flow, the progress pill (e.g., "3/6 completed") overlaps directly with the floating chat/action bubble button on the bottom right of the screen, making the UI look broken and difficult to click.
+3. **Stale Timestamps on Project Dashboard:** On the main Project Details page, the recent Deployments list incorrectly shows "1h ago" for every single deployment, regardless of when it actually happened. The real, accurate timestamps only appear after clicking "See all".
 
 Otherwise, the core deployment infrastructure feels solid!
 ---

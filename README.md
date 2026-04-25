@@ -118,7 +118,7 @@ If I were migrating this from a Take-Home to an Enterprise Production Environmen
 
 > **IMPORTANT:** I deployed a simple Vite application to Brimble to test the platform.
 
-**Deployment URL:** `https://brimble-feedback.brimble.app` *(or replace with your exact Brimble URL if different)*
+**Deployment URL:** `https://brimble-feedback.brimble.app/`
 
 **Feedback on the Deploy Experience:**
 The deployment flow is generally very smooth, but I encountered two significant points of friction:

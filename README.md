@@ -118,11 +118,14 @@ If I were migrating this from a Take-Home to an Enterprise Production Environmen
 
 > **IMPORTANT:** I deployed a simple Vite application to Brimble to test the platform.
 
-**Deployment URL:** `[INSERT YOUR BRIMBLE DEPLOY URL HERE]`
+**Deployment URL:** `https://brimble-feedback.brimble.app` *(or replace with your exact Brimble URL if different)*
 
 **Feedback on the Deploy Experience:**
-*[INSERT YOUR HONEST FEEDBACK HERE. Example: "The initial onboarding was incredibly fast, and I loved the UI for importing from GitHub. However, I noticed that the build logs were slightly delayed, and when I encountered a failed build due to a missing environment variable, the error message was buried too deep in the raw logs. I would love to see a 'Summary' panel that uses heuristics to surface the likely cause of a failed build (e.g., 'Missing START command' or 'Port bind timeout'). Overall, the core loop is very solid!"]*
+The deployment flow is generally very smooth, but I encountered two significant points of friction:
+1. **Billing/Quota Bug:** When I linked my new GitHub account, before I even deployed a single app, the system told me to "update my plan" and the billing page erroneously showed that I had already used all 650 free minutes. This is a critical onboarding bug that prevents new users from trying the platform.
+2. **UI Overlap:** During the onboarding flow, the progress pill (e.g., "3/6 completed") overlaps directly with the floating chat/action bubble button on the bottom right of the screen, making the UI look broken and difficult to click.
 
+Otherwise, the core deployment infrastructure feels solid!
 ---
 
 ## Founder Walkthrough Talking Points
